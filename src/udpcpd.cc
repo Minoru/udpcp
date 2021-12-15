@@ -1,4 +1,3 @@
-#include <array>
 #include <cstring>
 #include <iostream>
 #include <netdb.h>
@@ -7,21 +6,7 @@
 #include <sys/types.h>
 #include <vector>
 
-enum class packet_type : std::uint8_t {
-    ACK = 0,
-    PUT = 1
-};
-
-const size_t PACKET_HEADER_SIZE = 17; // bytes
-const size_t MAX_DATA_LEN = 1472; // bytes
-
-struct packet_t {
-    std::uint32_t seq_number;
-    std::uint32_t seq_total;
-    packet_type type;
-    std::array<char, 8> id;
-    std::array<char, MAX_DATA_LEN> data;
-} __attribute__((packed));
+#include "config.h"
 
 void deserialize_packet(packet_t& packet) {
     packet.seq_number = ntohl(packet.seq_number);
@@ -33,19 +18,19 @@ void deserialize_packet(packet_t& packet) {
 int main(int argc, char** argv) {
     if (argc != 3) {
         const auto program_name = argv[0];
-        std::cerr << "Usage: " << program_name << " address port\n";
+        std::cerr << "Usage: " << program_name << " ADDRESS PORT\n";
         return EXIT_FAILURE;
     }
 
     const auto address = argv[1];
     const auto port = argv[2];
 
-    struct ::addrinfo hints;
+    struct addrinfo hints;
     std::memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
 
-    struct ::addrinfo* bind_address;
+    struct addrinfo* bind_address;
     const auto rc = ::getaddrinfo(address, port, &hints, &bind_address);
     if (rc != 0) {
         std::cerr << "Failed to parse address:port: " << gai_strerror(rc) << std::endl;

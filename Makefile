@@ -1,8 +1,8 @@
 CXX?=g++
 CXXFLAGS?=-std=c++11 -Wall -Wextra -Werror
 
-UDPCP_DEPS=src/udpcp.o
-UDPCPD_DEPS=src/udpcpd.o
+UDPCP_DEPS=src/udpcp.o src/config.h
+UDPCPD_DEPS=src/udpcpd.o src/config.h
 
 all: udpcp udpcpd
 
