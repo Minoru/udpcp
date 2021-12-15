@@ -16,6 +16,6 @@ udpcpd: Makefile $(UDPCPD_DEPS)
 	$(CXX) $(CXXFLAGS) -o $@ $(UDPCPD_DEPS)
 
 clean:
-	rm -f $(UDPCP_DEPS) $(UDPCPD_DEPS)
+	rm -f src/*.o udpcp udpcpd
 
 .PHONY: clean
