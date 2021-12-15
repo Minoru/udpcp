@@ -82,11 +82,8 @@ int main(int argc, char** argv) {
                     std::cerr << "\tseq_number = " << packet.seq_number << std::endl;
                     std::cerr << "\tseq_total  = " << packet.seq_total << std::endl;
                     std::cerr << "\ttype       = " << static_cast<int>(packet.type) << std::endl;
-                    std::cerr << "\tid         = ";
-                    for (const char x : packet.id) {
-                        std::cerr << x;
-                    }
-                    std::cerr << std::endl;
+                    const auto id = *reinterpret_cast<std::uint64_t*>(packet.id.data());
+                    std::cerr << "\tid         = " << id << std::endl;
                     std::cerr << bytes_read - PACKET_HEADER_SIZE << " bytes of data\n";
                 }
             }
