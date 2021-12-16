@@ -1,5 +1,5 @@
 CXX?=g++
-CXXFLAGS?=-std=c++11 -Wall -Wextra -Werror
+CXXFLAGS?=-std=c++11 -Wall -Wextra -Werror -fsanitize=address -fno-omit-frame-pointer -g -O2
 
 UDPCPD_HOST?=localhost
 UDPCPD_PORT?=8765
