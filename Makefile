@@ -31,10 +31,10 @@ run-client2: run-server udpcp
 	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) udpcpd
 
 run-client3: run-server udpcp
-	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) /dev/null
+	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) data/empty
 
 run-client4: run-server udpcp
-	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) /proc/sys/kernel/random/uuid
+	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) data/1
 
 clean:
 	rm -f src/*.o udpcp udpcpd
