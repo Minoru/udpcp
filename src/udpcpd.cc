@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
                 packet.length = static_cast<std::uint32_t>(bytes_received);
                 deserialize_packet(packet);
                 const auto ack = state.handle_packet(packet);
-                const auto bytes_sent = ::sendto(sock.fd, static_cast<const void*>(&ack.payload), sizeof(ack.payload), 0, &src_addr, src_addrlen);
+                const auto bytes_sent = ::sendto(sock.fd, static_cast<const void*>(&ack.payload), ack.length, 0, &src_addr, src_addrlen);
                 if (bytes_sent == -1) {
                     ERR("Failed to send an ACK: " << strerror(errno));
                     continue;
