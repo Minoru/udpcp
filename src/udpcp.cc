@@ -1,7 +1,9 @@
+#include <cassert>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <netdb.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -137,6 +139,45 @@ void send_chunk(
     }
 }
 
+packet_t wait_for_ack(int server) {
+    struct pollfd sock;
+    sock.fd = server;
+    sock.events = POLLIN;
+
+    const int POLL_TIMEOUT_MS = 1000;
+
+    packet_t result;
+    result.length = 0;
+
+    int events_count;
+    do {
+        events_count = ::poll(&sock, 1, POLL_TIMEOUT_MS);
+
+        if (events_count == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+        } else if (events_count == 0) {
+            // poll timed out
+        } else {
+            // We only have one socket, and we handled the timeout, so we're sure some data is available.
+            assert(sock.revents & POLLIN);
+            const auto bytes_received = ::recvfrom(sock.fd, static_cast<void*>(&result.payload), sizeof(result.payload), 0, nullptr, nullptr);
+            if (bytes_received == -1) {
+                ERR("Failed to read ACK: " << strerror(errno));
+            } else if (bytes_received < static_cast<int>(PACKET_HEADER_SIZE)) {
+                ERR("Failed to read ACK header: expected " << PACKET_HEADER_SIZE << " bytes, got " << bytes_received);
+            } else if (result.payload.type == packet_type::ACK) {
+                result.length = bytes_received;
+            }
+        }
+
+        break;
+    } while (true);
+
+    return result;
+}
+
 int main(int argc, char** argv) {
     if (argc != 4) {
         const auto program_name = argv[0];
@@ -164,7 +205,13 @@ int main(int argc, char** argv) {
 
     for (std::uint32_t seq_number = 0; seq_number < chunks_count; ++seq_number) {
         const packet_t packet = prepare_packet(filesize, seq_number, chunks_count, file_id, data);
-        send_chunk(server, server_address, filename, packet, seq_number);
+        do {
+            send_chunk(server, server_address, filename, packet, seq_number);
+            const auto ack = wait_for_ack(server);
+            if (ack.length != 0) {
+                break;
+            }
+        } while (true);
     }
 
     ::freeaddrinfo(server_addresses);
