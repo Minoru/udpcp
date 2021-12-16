@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <sstream>
 
 /// Number of bytes in the packet's header.
 const size_t PACKET_HEADER_SIZE = 17;
@@ -32,5 +33,11 @@ struct packet_t {
     /// A chunk of the file.
     std::array<char, MAX_DATA_LEN> data;
 } __attribute__((packed));
+
+#define ERR(msg) {\
+    std::ostringstream line;\
+    line << msg;\
+    line << std::endl;\
+    std::cerr << line.str(); }
 
 #endif /* UDPCP_CONFIG_H */

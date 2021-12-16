@@ -21,7 +21,7 @@ struct addrinfo* parse_address_port(const char* address, const char* port) {
 
     const auto rc = ::getaddrinfo(address, port, &hints, &result);
     if (rc != 0) {
-        std::cerr << "Failed to parse address:port: " << gai_strerror(rc) << std::endl;
+        ERR("Failed to parse address:port: " << gai_strerror(rc));
         ::exit(EXIT_FAILURE);
     }
 
@@ -37,7 +37,7 @@ std::tuple<int, struct addrinfo*> prepare_socket(struct addrinfo* server_address
         }
     }
 
-    std::cerr << "Failed to obtain a socket to the server\n";
+    ERR("Failed to obtain a socket to the server");
     ::exit(EXIT_FAILURE);
 }
 
@@ -51,7 +51,7 @@ void serialize_packet(packet_t& packet) {
 size_t get_file_size(const char* filename) {
     struct stat result;
     if (::stat(filename, &result) == -1) {
-        std::cerr << "Failed to obtain the size of the file: " << strerror(errno) << std::endl;
+        ERR("Failed to obtain the size of the file: " << strerror(errno));
         ::exit(EXIT_FAILURE);
     }
 
@@ -69,7 +69,7 @@ size_t get_file_size(const char* filename) {
 std::vector<char> read_file(const char* filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
-        std::cerr << "Failed to open the file for reading\n";
+        ERR("Failed to open the file for reading");
         ::exit(EXIT_FAILURE);
     }
 
@@ -120,6 +120,7 @@ std::tuple<packet_t, size_t> prepare_packet(
 void send_chunk(
         int server,
         struct addrinfo* server_address,
+        const char* filename,
         const packet_t& packet,
         size_t packet_length,
         std::uint32_t seq_number)
@@ -127,19 +128,19 @@ void send_chunk(
     const auto packet_ptr = static_cast<const void*>(&packet);
     const auto sent_bytes = ::sendto(server, packet_ptr, packet_length, 0, server_address->ai_addr, server_address->ai_addrlen);
     if (sent_bytes == -1) {
-        std::cerr << "Failed to send chunk #" << seq_number << ": " << strerror(errno) << std::endl;
+        ERR("Failed to send chunk #" << seq_number << ": " << strerror(errno));
         ::exit(EXIT_FAILURE);
     } else if (static_cast<size_t>(sent_bytes) != packet_length) { // safe to cast because -1 is handled above
         // TODO: re-send this packet, as we only sent a part of it
     } else {
-        std::cerr << "Sent chunk #" << seq_number << std::endl;
+        ERR("<< (" << filename << ") Sent chunk #" << seq_number);
     }
 }
 
 int main(int argc, char** argv) {
     if (argc != 4) {
         const auto program_name = argv[0];
-        std::cerr << "Usage: " << program_name << " ADDRESS PORT FILE\n";
+        ERR("Usage: " << program_name << " ADDRESS PORT FILE");
         return EXIT_FAILURE;
     }
 
@@ -157,7 +158,7 @@ int main(int argc, char** argv) {
     const auto filesize = data.size();
 
     const auto chunks_count = (filesize + MAX_DATA_LEN - 1) / MAX_DATA_LEN;
-    std::cerr << filesize << " = " << chunks_count << " chunks, the last one is " << (filesize % MAX_DATA_LEN) << " bytes long\n";
+    ERR(filename << " is " << filesize << " bytes long, so " << chunks_count << " chunks, the last one is " << (filesize % MAX_DATA_LEN) << " bytes long");
 
     const auto file_id = random_file_id();
 
@@ -165,7 +166,7 @@ int main(int argc, char** argv) {
         packet_t packet;
         size_t packet_size;
         std::tie(packet, packet_size) = prepare_packet(filesize, seq_number, chunks_count, file_id, data);
-        send_chunk(server, server_address, packet, packet_size, seq_number);
+        send_chunk(server, server_address, filename, packet, packet_size, seq_number);
     }
 
     ::freeaddrinfo(server_addresses);
