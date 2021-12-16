@@ -73,7 +73,7 @@ packet_t handle_packet(const packet_t& packet) {
         << "\tseq_total = " << packet.payload.seq_total
         << "\ttype = " << static_cast<int>(packet.payload.type)
         << "\tid = " << id
-        << "\tand " << packet.length << " bytes of data");
+        << "\tand " << packet.length - PACKET_HEADER_SIZE << " bytes of data");
 
     packet_t ack;
     ack.payload.seq_number = packet.payload.seq_number;
