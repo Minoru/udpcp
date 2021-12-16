@@ -25,16 +25,16 @@ run-server: udpcpd
 	./udpcpd $(UDPCPD_HOST) $(UDPCPD_PORT) &
 
 run-client1: run-server udpcp
-	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) udpcp
+	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) data/16195
 
 run-client2: run-server udpcp
-	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) udpcpd
+	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) data/1
 
 run-client3: run-server udpcp
-	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) data/empty
+	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) data/19143
 
 run-client4: run-server udpcp
-	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) data/1
+	./udpcp $(UDPCPD_HOST) $(UDPCPD_PORT) data/empty
 
 clean:
 	rm -f src/*.o udpcp udpcpd
