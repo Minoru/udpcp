@@ -208,18 +208,43 @@ int main(int argc, char** argv) {
 
     const auto file_id = random_file_id();
 
+    std::uint32_t server_checksum = 0;
     for (std::uint32_t seq_number = 0; seq_number < chunks_count; ++seq_number) {
         const packet_t packet = prepare_packet(filesize, seq_number, chunks_count, file_id, data);
         do {
             send_chunk(server, server_address, filename, packet, seq_number);
             const auto ack = wait_for_ack(server);
             if (ack.length != 0) {
+                if (ack.length > PACKET_HEADER_SIZE) {
+                    auto server_checksum_ptr = reinterpret_cast<unsigned char*>(&server_checksum);
+                    std::copy(ack.payload.data.cbegin(), ack.payload.data.cbegin() + sizeof(server_checksum), server_checksum_ptr);
+                }
+
                 break;
             }
         } while (true);
+
     }
 
-    ERR("Sent " << filename << " (id " << file_id.as_number << ") with CRC32 of 0x" << std::hex << checksum);
+    std::string status;
+    if (server_checksum == checksum) {
+        status = " OK ";
+    } else {
+        status = "FAIL";
+    }
+    ERR(
+            status
+            << " Sent "
+            << filename
+            << " (id "
+            << file_id.as_number
+            << "), "
+            << filesize
+            << " bytes, with CRC32 of 0x"
+            << std::hex
+            << checksum
+            << "; got server CRC32 of 0x"
+            << server_checksum);
 
     ::freeaddrinfo(server_addresses);
 }
