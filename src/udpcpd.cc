@@ -4,9 +4,62 @@
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "config.h"
+
+/// The state of a file being received.
+struct FileState {
+    /// Total number of chunks we expect for this file (same as seq_total in PUT packets).
+    std::uint32_t chunks_expected = 0;
+    /// `seq_number`s of all the PUT packets we got (and ACKed) so far.
+    std::unordered_set<std::uint32_t> chunks_received;
+    /// The data we received, put in the proper order. "Holes" are zeroed.
+    std::vector<char> data;
+};
+
+class ServerState {
+    public:
+        packet_t handle_packet(const packet_t& packet);
+
+    private:
+        std::unordered_map<file_id, FileState> state;
+};
+
+packet_t ServerState::handle_packet(const packet_t& packet) {
+    const auto data_length = packet.length - PACKET_HEADER_SIZE;
+    ERR("-->"
+        << "\tseq_number = " << packet.payload.seq_number
+        << "\tseq_total = " << packet.payload.seq_total
+        << "\ttype = " << static_cast<int>(packet.payload.type)
+        << "\tid = " << packet.payload.id.as_number
+        << "\tand " << data_length << " bytes of data");
+
+    auto& filestate = this->state[packet.payload.id];
+    filestate.chunks_expected = packet.payload.seq_total;
+    filestate.chunks_received.insert(packet.payload.seq_number);
+
+    ERR("   "
+        << "\tgot " << filestate.chunks_received.size()
+        << " out of " << filestate.chunks_expected << " chunks");
+
+    const auto offset = packet.payload.seq_number * MAX_DATA_LEN;
+    filestate.data.resize(offset + data_length, 0);
+    std::copy(
+            packet.payload.data.cbegin(),
+            packet.payload.data.cbegin() + data_length,
+            filestate.data.begin() + offset);
+
+    packet_t ack;
+    ack.payload.seq_number = packet.payload.seq_number;
+    ack.payload.seq_total = filestate.chunks_received.size();
+    ack.payload.type = packet_type::ACK;
+    ack.payload.id = packet.payload.id;
+    ack.length = PACKET_HEADER_SIZE;
+    return ack;
+}
 
 void deserialize_packet(packet_t& packet) {
     packet.payload.seq_number = ntohl(packet.payload.seq_number);
@@ -66,24 +119,9 @@ std::vector<pollfd> socket_to_pollfd(const std::vector<int>& sockets) {
     return result;
 }
 
-packet_t handle_packet(const packet_t& packet) {
-    ERR("-->"
-        << "\tseq_number = " << packet.payload.seq_number
-        << "\tseq_total = " << packet.payload.seq_total
-        << "\ttype = " << static_cast<int>(packet.payload.type)
-        << "\tid = " << packet.payload.id.as_number
-        << "\tand " << packet.length - PACKET_HEADER_SIZE << " bytes of data");
-
-    packet_t ack;
-    ack.payload.seq_number = packet.payload.seq_number;
-    ack.payload.seq_total = packet.payload.seq_number; // TODO: return the actual count of received packets
-    ack.payload.type = packet_type::ACK;
-    ack.payload.id = packet.payload.id;
-    ack.length = PACKET_HEADER_SIZE;
-    return ack;
-}
-
 int main(int argc, char** argv) {
+    ServerState state;
+
     if (argc != 3) {
         const auto program_name = argv[0];
         ERR("Usage: " << program_name << " ADDRESS PORT");
@@ -121,7 +159,7 @@ int main(int argc, char** argv) {
                 // We handled negative case above, so we're sure the value is non-negative and can be casted into an unsigned type
                 packet.length = static_cast<std::uint32_t>(bytes_received);
                 deserialize_packet(packet);
-                const auto ack = handle_packet(packet);
+                const auto ack = state.handle_packet(packet);
                 const auto bytes_sent = ::sendto(sock.fd, static_cast<const void*>(&ack.payload), sizeof(ack.payload), 0, &src_addr, src_addrlen);
                 if (bytes_sent == -1) {
                     ERR("Failed to send an ACK: " << strerror(errno));

@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <sstream>
 
 /// Number of bytes in the packet's header.
@@ -25,6 +26,21 @@ union file_id {
     std::uint64_t as_number;
     std::array<char, 8> raw;
 };
+
+template<>
+struct std::hash<file_id> {
+    std::size_t operator()(const file_id& id) const noexcept {
+        return std::hash<std::uint64_t>()(id.as_number);
+    }
+};
+
+inline bool operator==(const file_id& lhs, const file_id& rhs) {
+    return lhs.as_number == rhs.as_number;
+}
+
+inline bool operator!=(const file_id& lhs, const file_id& rhs) {
+    return !(lhs == rhs);
+}
 
 /// Data packet.
 struct packet_t {
