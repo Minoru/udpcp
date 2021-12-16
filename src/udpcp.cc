@@ -68,8 +68,8 @@ size_t get_file_size(const char* filename) {
     return static_cast<size_t>(result.st_size);
 }
 
-std::vector<char> read_file(const char* filename) {
-    std::ifstream file(filename);
+std::vector<unsigned char> read_file(const char* filename) {
+    std::basic_ifstream<unsigned char> file(filename);
     if (!file.is_open()) {
         ERR("Failed to open the file for reading");
         ::exit(EXIT_FAILURE);
@@ -77,7 +77,7 @@ std::vector<char> read_file(const char* filename) {
 
     const auto filesize = get_file_size(filename);
 
-    std::vector<char> data;
+    std::vector<unsigned char> data;
     data.resize(filesize, 0);
     file.read(data.data(), filesize);
 
@@ -98,7 +98,7 @@ packet_t prepare_packet(
         std::uint32_t seq_number,
         std::uint32_t chunks_count,
         file_id id,
-        const std::vector<char>& data)
+        const std::vector<unsigned char>& data)
 {
     packet_t packet;
     packet.payload.seq_number = seq_number;

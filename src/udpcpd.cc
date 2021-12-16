@@ -17,7 +17,7 @@ struct FileState {
     /// `seq_number`s of all the PUT packets we got (and ACKed) so far.
     std::unordered_set<std::uint32_t> chunks_received;
     /// The data we received, put in the proper order. "Holes" are zeroed.
-    std::vector<char> data;
+    std::vector<unsigned char> data;
 };
 
 class ServerState {

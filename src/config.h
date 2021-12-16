@@ -54,7 +54,7 @@ struct packet_t {
         /// File ID (unique per file).
         file_id id;
         /// A chunk of the file.
-        std::array<char, MAX_DATA_LEN> data;
+        std::array<unsigned char, MAX_DATA_LEN> data;
     } payload __attribute__((packed));
 
     /// The number of bytes in the packet (including the header).
