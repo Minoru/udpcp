@@ -127,15 +127,19 @@ void send_chunk(
         std::uint32_t seq_number)
 {
     const auto packet_ptr = static_cast<const void*>(&packet.payload);
-    const auto sent_bytes = ::sendto(server, packet_ptr, packet.length, 0, server_address->ai_addr, server_address->ai_addrlen);
-    if (sent_bytes == -1) {
-        ERR("Failed to send chunk #" << seq_number << ": " << strerror(errno));
-        ::exit(EXIT_FAILURE);
-    } else if (static_cast<size_t>(sent_bytes) != packet.length) { // safe to cast because -1 is handled above
-        // TODO: re-send this packet, as we only sent a part of it
-    } else {
-        ERR("<-- (" << filename << ", " << packet.payload.id.as_number << ") Sent chunk #" << seq_number);
-    }
+    ssize_t sent_bytes;
+    do {
+        sent_bytes = ::sendto(server, packet_ptr, packet.length, 0, server_address->ai_addr, server_address->ai_addrlen);
+        if (sent_bytes == -1) {
+            ERR("Failed to send chunk #" << seq_number << ": " << strerror(errno));
+            ::exit(EXIT_FAILURE);
+        } else if (static_cast<size_t>(sent_bytes) != packet.length) { // safe to cast because -1 is handled above
+            continue;
+        } else {
+            ERR("<-- (" << filename << ", " << packet.payload.id.as_number << ") Sent chunk #" << seq_number);
+            break;
+        }
+    } while (true);
 }
 
 packet_t wait_for_ack(int server) {
