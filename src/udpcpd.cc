@@ -15,30 +15,27 @@ void deserialize_packet(packet_t& packet) {
     // No need to convert packet.id and packet.data as they're opaque arrays
 }
 
-int main(int argc, char** argv) {
-    if (argc != 3) {
-        const auto program_name = argv[0];
-        std::cerr << "Usage: " << program_name << " ADDRESS PORT\n";
-        return EXIT_FAILURE;
-    }
-
-    const auto address = argv[1];
-    const auto port = argv[2];
+struct addrinfo* parse_address_port(const char* address, const char* port) {
+    struct addrinfo* result;
 
     struct addrinfo hints;
     std::memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
 
-    struct addrinfo* bind_address;
-    const auto rc = ::getaddrinfo(address, port, &hints, &bind_address);
+    const auto rc = ::getaddrinfo(address, port, &hints, &result);
     if (rc != 0) {
         std::cerr << "Failed to parse address:port: " << gai_strerror(rc) << std::endl;
-        return EXIT_FAILURE;
+        ::exit(EXIT_FAILURE);
     }
 
-    std::vector<int> listening_sockets;
-    for (auto addr = bind_address; addr != nullptr; addr = addr->ai_next) {
+    return result;
+}
+
+std::vector<int> bind_sockets(struct addrinfo* addresses) {
+    std::vector<int> result;
+
+    for (auto addr = addresses; addr != nullptr; addr = addr->ai_next) {
         const int s = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
         if (s == -1) {
             std::cerr << "Failed to create a socket: " << strerror(errno) << std::endl;
@@ -50,16 +47,48 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        listening_sockets.push_back(s);
+        result.push_back(s);
     }
 
-    std::vector<pollfd> polled_sockets;
-    for (const auto& sock : listening_sockets) {
+    return result;
+}
+
+std::vector<pollfd> socket_to_pollfd(const std::vector<int>& sockets) {
+    std::vector<pollfd> result;
+
+    for (const auto& sock : sockets) {
         struct pollfd s;
         s.fd = sock;
         s.events = POLLIN;
-        polled_sockets.push_back(s);
+        result.push_back(s);
     }
+
+    return result;
+}
+
+void handle_packet(const packet_t& packet, int bytes_read) {
+    std::cerr << "Got a packet!\n";
+    std::cerr << "\tseq_number = " << packet.seq_number << std::endl;
+    std::cerr << "\tseq_total  = " << packet.seq_total << std::endl;
+    std::cerr << "\ttype       = " << static_cast<int>(packet.type) << std::endl;
+    const auto id = *reinterpret_cast<const std::uint64_t*>(packet.id.data());
+    std::cerr << "\tid         = " << id << std::endl;
+    std::cerr << bytes_read - PACKET_HEADER_SIZE << " bytes of data\n";
+}
+
+int main(int argc, char** argv) {
+    if (argc != 3) {
+        const auto program_name = argv[0];
+        std::cerr << "Usage: " << program_name << " ADDRESS PORT\n";
+        return EXIT_FAILURE;
+    }
+
+    const auto address = argv[1];
+    const auto port = argv[2];
+
+    struct addrinfo* bind_address = parse_address_port(address, port);
+    const auto listening_sockets = bind_sockets(bind_address);
+    auto polled_sockets = socket_to_pollfd(listening_sockets);
 
     const int POLL_TIMEOUT_MS = 30000;
     int events_count;
@@ -78,13 +107,7 @@ int main(int argc, char** argv) {
                     std::cerr << "Failed to read the packet header: expected " << PACKET_HEADER_SIZE << " bytes, got " << bytes_read << std::endl;
                     continue;
                 } else {
-                    std::cerr << "Got a packet!\n";
-                    std::cerr << "\tseq_number = " << packet.seq_number << std::endl;
-                    std::cerr << "\tseq_total  = " << packet.seq_total << std::endl;
-                    std::cerr << "\ttype       = " << static_cast<int>(packet.type) << std::endl;
-                    const auto id = *reinterpret_cast<std::uint64_t*>(packet.id.data());
-                    std::cerr << "\tid         = " << id << std::endl;
-                    std::cerr << bytes_read - PACKET_HEADER_SIZE << " bytes of data\n";
+                    handle_packet(packet, bytes_read);
                 }
             }
         }
