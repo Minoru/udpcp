@@ -243,11 +243,14 @@ int main(int argc, char** argv) {
 
     }
 
+    int retval = 0;
     std::string status;
     if (server_checksum == checksum) {
         status = " OK ";
+        retval = EXIT_SUCCESS;
     } else {
         status = "FAIL";
+        retval = EXIT_FAILURE;
     }
     ERR(
             status
@@ -264,4 +267,6 @@ int main(int argc, char** argv) {
             << server_checksum);
 
     ::freeaddrinfo(server_addresses);
+
+    return retval;
 }
