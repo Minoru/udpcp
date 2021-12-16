@@ -38,6 +38,12 @@ std::tuple<int, struct addrinfo*> prepare_socket(struct addrinfo* server_address
     for (struct addrinfo* server_address = server_addresses; server_address != nullptr; server_address = server_address->ai_next) {
         server = ::socket(server_address->ai_family, server_address->ai_socktype, server_address->ai_protocol);
         if (server != -1) {
+            int yes = 1;
+            if (::setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
+                ERR("Failed to set SO_REUSEADDR on the socket");
+                // This might not be fatal if no previous servers are around, so carry on
+            }
+
             return std::make_tuple(server, server_address);
         }
     }
