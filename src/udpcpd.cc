@@ -96,19 +96,21 @@ int main(int argc, char** argv) {
     while (events_count = ::poll(polled_sockets.data(), polled_sockets.size(), POLL_TIMEOUT_MS), events_count != 0) {
         for (const pollfd sock : polled_sockets) {
             const bool is_ready = sock.revents & POLLIN;
-            if (is_ready) {
-                packet_t packet;
-                const int bytes_read = ::recvfrom(sock.fd, static_cast<void*>(&packet), sizeof(packet_t), 0, nullptr, nullptr);
-                deserialize_packet(packet);
-                if (bytes_read == -1) {
-                    std::cerr << "Failed to read data: " << strerror(errno) << std::endl;
-                    continue;
-                } else if (bytes_read < static_cast<int>(PACKET_HEADER_SIZE)) {
-                    std::cerr << "Failed to read the packet header: expected " << PACKET_HEADER_SIZE << " bytes, got " << bytes_read << std::endl;
-                    continue;
-                } else {
-                    handle_packet(packet, bytes_read);
-                }
+            if (!is_ready) {
+                continue;
+            }
+
+            packet_t packet;
+            const int bytes_read = ::recvfrom(sock.fd, static_cast<void*>(&packet), sizeof(packet_t), 0, nullptr, nullptr);
+            deserialize_packet(packet);
+            if (bytes_read == -1) {
+                std::cerr << "Failed to read data: " << strerror(errno) << std::endl;
+                continue;
+            } else if (bytes_read < static_cast<int>(PACKET_HEADER_SIZE)) {
+                std::cerr << "Failed to read the packet header: expected " << PACKET_HEADER_SIZE << " bytes, got " << bytes_read << std::endl;
+                continue;
+            } else {
+                handle_packet(packet, bytes_read);
             }
         }
     }
