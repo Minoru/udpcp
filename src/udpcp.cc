@@ -70,7 +70,7 @@ size_t get_file_size(const char* filename) {
 }
 
 std::vector<unsigned char> read_file(const char* filename) {
-    std::basic_ifstream<unsigned char> file(filename);
+    std::basic_ifstream<char> file(filename, std::ios::binary);
     if (!file.is_open()) {
         ERR("Failed to open the file for reading");
         ::exit(EXIT_FAILURE);
@@ -80,7 +80,10 @@ std::vector<unsigned char> read_file(const char* filename) {
 
     std::vector<unsigned char> data;
     data.resize(filesize, 0);
-    file.read(data.data(), filesize);
+    // It's safe to cast from `unsigned char*` to `char*` because the sizes of
+    // the types are the same, and we're only going to interpret `unsigned
+    // char` as "byte", not as a character
+    file.read(reinterpret_cast<char*>(data.data()), filesize);
 
     return data;
 }
