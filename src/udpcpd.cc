@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "config.h"
+#include "crc32c.h"
 
 /// The state of a file being received.
 struct FileState {
@@ -58,6 +59,25 @@ packet_t ServerState::handle_packet(const packet_t& packet) {
     ack.payload.type = packet_type::ACK;
     ack.payload.id = packet.payload.id;
     ack.length = PACKET_HEADER_SIZE;
+
+    if (filestate.chunks_expected == filestate.chunks_received.size()) {
+        const auto checksum = crc32c(filestate.data);
+        const auto checksum_ptr = reinterpret_cast<const unsigned char*>(&checksum);
+        std::copy(checksum_ptr, checksum_ptr + sizeof(checksum), ack.payload.data.begin());
+        ack.length += sizeof(checksum);
+
+        ERR(
+                "Received a file id = "
+                << packet.payload.id.as_number
+                << ", "
+                << filestate.data.size()
+                << " bytes, checksum 0x"
+                << std::hex
+                << checksum);
+
+        this->state.erase(packet.payload.id);
+    }
+
     return ack;
 }
 
