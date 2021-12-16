@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "config.h"
+#include "crc32c.h"
 
 struct addrinfo* parse_address_port(const char* address, const char* port) {
     struct addrinfo* result;
@@ -199,6 +200,7 @@ int main(int argc, char** argv) {
     std::tie(server, server_address) = prepare_socket(server_addresses);
 
     const auto data = read_file(filename);
+    const auto checksum = crc32c(data);
     const auto filesize = data.size();
 
     const auto chunks_count = (filesize + MAX_DATA_LEN - 1) / MAX_DATA_LEN;
@@ -216,6 +218,8 @@ int main(int argc, char** argv) {
             }
         } while (true);
     }
+
+    ERR("Sent " << filename << " (id " << file_id.as_number << ") with CRC32 of 0x" << std::hex << checksum);
 
     ::freeaddrinfo(server_addresses);
 }

@@ -4,8 +4,9 @@ CXXFLAGS?=-std=c++11 -Wall -Wextra -Werror
 UDPCPD_HOST?=localhost
 UDPCPD_PORT?=8765
 
-UDPCP_DEPS=src/udpcp.o src/config.h
-UDPCPD_DEPS=src/udpcpd.o src/config.h
+SHARED_DEPS=src/crc32c.o src/crc32c.h
+UDPCP_DEPS=src/udpcp.o src/config.h $(SHARED_DEPS)
+UDPCPD_DEPS=src/udpcpd.o src/config.h $(SHARED_DEPS)
 
 all: udpcp udpcpd
 
