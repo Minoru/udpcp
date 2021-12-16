@@ -66,7 +66,7 @@ std::vector<pollfd> socket_to_pollfd(const std::vector<int>& sockets) {
     return result;
 }
 
-void handle_packet(const packet_t& packet) {
+packet_t handle_packet(const packet_t& packet) {
     const auto id = *reinterpret_cast<const std::uint64_t*>(packet.payload.id.data());
     ERR("-->"
         << "\tseq_number = " << packet.payload.seq_number
@@ -74,6 +74,14 @@ void handle_packet(const packet_t& packet) {
         << "\ttype = " << static_cast<int>(packet.payload.type)
         << "\tid = " << id
         << "\tand " << packet.length << " bytes of data");
+
+    packet_t ack;
+    ack.payload.seq_number = packet.payload.seq_number;
+    ack.payload.seq_total = packet.payload.seq_number; // TODO: return the actual count of received packets
+    ack.payload.type = packet_type::ACK;
+    ack.payload.id = packet.payload.id;
+    ack.length = PACKET_HEADER_SIZE;
+    return ack;
 }
 
 int main(int argc, char** argv) {
@@ -101,7 +109,9 @@ int main(int argc, char** argv) {
             }
 
             packet_t packet;
-            const auto bytes_received = ::recvfrom(sock.fd, static_cast<void*>(&packet.payload), sizeof(packet.payload), 0, nullptr, nullptr);
+            struct sockaddr src_addr;
+            socklen_t src_addrlen = sizeof(src_addr);
+            const auto bytes_received = ::recvfrom(sock.fd, static_cast<void*>(&packet.payload), sizeof(packet.payload), 0, &src_addr, &src_addrlen);
             if (bytes_received == -1) {
                 ERR("Failed to read data: " << strerror(errno));
                 continue;
@@ -112,7 +122,12 @@ int main(int argc, char** argv) {
                 // We handled negative case above, so we're sure the value is non-negative and can be casted into an unsigned type
                 packet.length = static_cast<std::uint32_t>(bytes_received);
                 deserialize_packet(packet);
-                handle_packet(packet);
+                const auto ack = handle_packet(packet);
+                const auto bytes_sent = ::sendto(sock.fd, static_cast<const void*>(&ack.payload), sizeof(ack.payload), 0, &src_addr, src_addrlen);
+                if (bytes_sent == -1) {
+                    ERR("Failed to send an ACK: " << strerror(errno));
+                    continue;
+                }
             }
         }
     }
