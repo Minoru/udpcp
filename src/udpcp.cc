@@ -133,7 +133,8 @@ void send_chunk(
     } else if (static_cast<size_t>(sent_bytes) != packet_length) { // safe to cast because -1 is handled above
         // TODO: re-send this packet, as we only sent a part of it
     } else {
-        ERR("<< (" << filename << ") Sent chunk #" << seq_number);
+        const auto file_id = *reinterpret_cast<const std::uint64_t*>(packet.id.data());
+        ERR("<-- (" << filename << ", " << file_id << ") Sent chunk #" << seq_number);
     }
 }
 

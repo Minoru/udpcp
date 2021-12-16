@@ -68,7 +68,7 @@ std::vector<pollfd> socket_to_pollfd(const std::vector<int>& sockets) {
 
 void handle_packet(const packet_t& packet, int bytes_read) {
     const auto id = *reinterpret_cast<const std::uint64_t*>(packet.id.data());
-    ERR(">>"
+    ERR("-->"
         << "\tseq_number = " << packet.seq_number
         << "\tseq_total = " << packet.seq_total
         << "\ttype = " << static_cast<int>(packet.type)
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
     const auto listening_sockets = bind_sockets(bind_address);
     auto polled_sockets = socket_to_pollfd(listening_sockets);
 
-    const int POLL_TIMEOUT_MS = 30000;
+    const int POLL_TIMEOUT_MS = 5000;
     int events_count;
 
     while (events_count = ::poll(polled_sockets.data(), polled_sockets.size(), POLL_TIMEOUT_MS), events_count != 0) {
