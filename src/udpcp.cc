@@ -42,10 +42,10 @@ std::tuple<int, struct addrinfo*> prepare_socket(struct addrinfo* server_address
 }
 
 void serialize_packet(packet_t& packet) {
-    packet.seq_number = htonl(packet.seq_number);
-    packet.seq_total = htonl(packet.seq_total);
-    // No need to convert packet.type as it's a single byte
-    // No need to convert packet.id and packet.data as they're opaque arrays
+    packet.payload.seq_number = htonl(packet.payload.seq_number);
+    packet.payload.seq_total = htonl(packet.payload.seq_total);
+    // No need to convert packet.payload.type as it's a single byte
+    // No need to convert packet.payload.id and packet.payload.data as they're opaque arrays
 }
 
 size_t get_file_size(const char* filename) {
@@ -91,7 +91,7 @@ std::array<char, 8> random_file_id() {
     return result;
 }
 
-std::tuple<packet_t, size_t> prepare_packet(
+packet_t prepare_packet(
         size_t filesize,
         std::uint32_t seq_number,
         std::uint32_t chunks_count,
@@ -99,22 +99,22 @@ std::tuple<packet_t, size_t> prepare_packet(
         const std::vector<char>& data)
 {
     packet_t packet;
-    packet.seq_number = seq_number;
-    packet.seq_total = chunks_count;
-    packet.type = packet_type::PUT;
-    packet.id = file_id;
+    packet.payload.seq_number = seq_number;
+    packet.payload.seq_total = chunks_count;
+    packet.payload.type = packet_type::PUT;
+    packet.payload.id = file_id;
 
     const auto offset = seq_number * MAX_DATA_LEN;
     const auto data_len = std::min(filesize - offset, MAX_DATA_LEN);
     std::copy(
             data.cbegin() + offset,
             data.cbegin() + offset + data_len,
-            packet.data.begin());
+            packet.payload.data.begin());
     serialize_packet(packet);
 
-    const auto packet_length = PACKET_HEADER_SIZE + data_len;
+    packet.length = PACKET_HEADER_SIZE + data_len;
 
-    return std::make_tuple(packet, packet_length);
+    return packet;
 }
 
 void send_chunk(
@@ -122,18 +122,17 @@ void send_chunk(
         struct addrinfo* server_address,
         const char* filename,
         const packet_t& packet,
-        size_t packet_length,
         std::uint32_t seq_number)
 {
-    const auto packet_ptr = static_cast<const void*>(&packet);
-    const auto sent_bytes = ::sendto(server, packet_ptr, packet_length, 0, server_address->ai_addr, server_address->ai_addrlen);
+    const auto packet_ptr = static_cast<const void*>(&packet.payload);
+    const auto sent_bytes = ::sendto(server, packet_ptr, packet.length, 0, server_address->ai_addr, server_address->ai_addrlen);
     if (sent_bytes == -1) {
         ERR("Failed to send chunk #" << seq_number << ": " << strerror(errno));
         ::exit(EXIT_FAILURE);
-    } else if (static_cast<size_t>(sent_bytes) != packet_length) { // safe to cast because -1 is handled above
+    } else if (static_cast<size_t>(sent_bytes) != packet.length) { // safe to cast because -1 is handled above
         // TODO: re-send this packet, as we only sent a part of it
     } else {
-        const auto file_id = *reinterpret_cast<const std::uint64_t*>(packet.id.data());
+        const auto file_id = *reinterpret_cast<const std::uint64_t*>(packet.payload.id.data());
         ERR("<-- (" << filename << ", " << file_id << ") Sent chunk #" << seq_number);
     }
 }
@@ -164,10 +163,8 @@ int main(int argc, char** argv) {
     const auto file_id = random_file_id();
 
     for (std::uint32_t seq_number = 0; seq_number < chunks_count; ++seq_number) {
-        packet_t packet;
-        size_t packet_size;
-        std::tie(packet, packet_size) = prepare_packet(filesize, seq_number, chunks_count, file_id, data);
-        send_chunk(server, server_address, filename, packet, packet_size, seq_number);
+        const packet_t packet = prepare_packet(filesize, seq_number, chunks_count, file_id, data);
+        send_chunk(server, server_address, filename, packet, seq_number);
     }
 
     ::freeaddrinfo(server_addresses);

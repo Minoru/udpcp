@@ -9,10 +9,10 @@
 #include "config.h"
 
 void deserialize_packet(packet_t& packet) {
-    packet.seq_number = ntohl(packet.seq_number);
-    packet.seq_total = ntohl(packet.seq_total);
-    // No need to convert packet.type as it's a single byte
-    // No need to convert packet.id and packet.data as they're opaque arrays
+    packet.payload.seq_number = ntohl(packet.payload.seq_number);
+    packet.payload.seq_total = ntohl(packet.payload.seq_total);
+    // No need to convert packet.payload.type as it's a single byte
+    // No need to convert packet.payload.id and packet.payload.data as they're opaque arrays
 }
 
 struct addrinfo* parse_address_port(const char* address, const char* port) {
@@ -66,14 +66,14 @@ std::vector<pollfd> socket_to_pollfd(const std::vector<int>& sockets) {
     return result;
 }
 
-void handle_packet(const packet_t& packet, int bytes_read) {
-    const auto id = *reinterpret_cast<const std::uint64_t*>(packet.id.data());
+void handle_packet(const packet_t& packet) {
+    const auto id = *reinterpret_cast<const std::uint64_t*>(packet.payload.id.data());
     ERR("-->"
-        << "\tseq_number = " << packet.seq_number
-        << "\tseq_total = " << packet.seq_total
-        << "\ttype = " << static_cast<int>(packet.type)
+        << "\tseq_number = " << packet.payload.seq_number
+        << "\tseq_total = " << packet.payload.seq_total
+        << "\ttype = " << static_cast<int>(packet.payload.type)
         << "\tid = " << id
-        << "\tand " << bytes_read - PACKET_HEADER_SIZE << " bytes of data");
+        << "\tand " << packet.length << " bytes of data");
 }
 
 int main(int argc, char** argv) {
@@ -101,16 +101,18 @@ int main(int argc, char** argv) {
             }
 
             packet_t packet;
-            const int bytes_read = ::recvfrom(sock.fd, static_cast<void*>(&packet), sizeof(packet_t), 0, nullptr, nullptr);
-            deserialize_packet(packet);
-            if (bytes_read == -1) {
+            const auto bytes_received = ::recvfrom(sock.fd, static_cast<void*>(&packet.payload), sizeof(packet.payload), 0, nullptr, nullptr);
+            if (bytes_received == -1) {
                 ERR("Failed to read data: " << strerror(errno));
                 continue;
-            } else if (bytes_read < static_cast<int>(PACKET_HEADER_SIZE)) {
-                ERR("Failed to read the packet header: expected " << PACKET_HEADER_SIZE << " bytes, got " << bytes_read);
+            } else if (bytes_received < static_cast<int>(PACKET_HEADER_SIZE)) {
+                ERR("Failed to read the packet header: expected " << PACKET_HEADER_SIZE << " bytes, got " << bytes_received);
                 continue;
             } else {
-                handle_packet(packet, bytes_read);
+                // We handled negative case above, so we're sure the value is non-negative and can be casted into an unsigned type
+                packet.length = static_cast<std::uint32_t>(bytes_received);
+                deserialize_packet(packet);
+                handle_packet(packet);
             }
         }
     }

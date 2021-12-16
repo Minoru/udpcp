@@ -22,17 +22,22 @@ enum class packet_type : std::uint8_t {
 
 /// Data packet.
 struct packet_t {
-    /// Sequence number.
-    std::uint32_t seq_number;
-    /// Total number of packets that comprise this file.
-    std::uint32_t seq_total;
-    /// Packet type.
-    packet_type type;
-    /// File ID (unique per file).
-    std::array<char, 8> id;
-    /// A chunk of the file.
-    std::array<char, MAX_DATA_LEN> data;
-} __attribute__((packed));
+    struct {
+        /// Sequence number.
+        std::uint32_t seq_number;
+        /// Total number of packets that comprise this file.
+        std::uint32_t seq_total;
+        /// Packet type.
+        packet_type type;
+        /// File ID (unique per file).
+        std::array<char, 8> id;
+        /// A chunk of the file.
+        std::array<char, MAX_DATA_LEN> data;
+    } payload __attribute__((packed));
+
+    /// The number of bytes in the packet (including the header).
+    std::uint32_t length;
+};
 
 #define ERR(msg) {\
     std::ostringstream line;\
