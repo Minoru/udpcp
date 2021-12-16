@@ -67,12 +67,11 @@ std::vector<pollfd> socket_to_pollfd(const std::vector<int>& sockets) {
 }
 
 packet_t handle_packet(const packet_t& packet) {
-    const auto id = *reinterpret_cast<const std::uint64_t*>(packet.payload.id.data());
     ERR("-->"
         << "\tseq_number = " << packet.payload.seq_number
         << "\tseq_total = " << packet.payload.seq_total
         << "\ttype = " << static_cast<int>(packet.payload.type)
-        << "\tid = " << id
+        << "\tid = " << packet.payload.id.as_number
         << "\tand " << packet.length - PACKET_HEADER_SIZE << " bytes of data");
 
     packet_t ack;

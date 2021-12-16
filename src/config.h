@@ -20,6 +20,12 @@ enum class packet_type : std::uint8_t {
     PUT = 1
 };
 
+/// A unique 8-byte identifier of a file being transferred.
+union file_id {
+    std::uint64_t as_number;
+    std::array<char, 8> raw;
+};
+
 /// Data packet.
 struct packet_t {
     struct {
@@ -30,7 +36,7 @@ struct packet_t {
         /// Packet type.
         packet_type type;
         /// File ID (unique per file).
-        std::array<char, 8> id;
+        file_id id;
         /// A chunk of the file.
         std::array<char, MAX_DATA_LEN> data;
     } payload __attribute__((packed));

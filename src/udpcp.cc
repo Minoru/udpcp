@@ -84,10 +84,10 @@ std::vector<char> read_file(const char* filename) {
     return data;
 }
 
-std::array<char, 8> random_file_id() {
+file_id random_file_id() {
     ::srand(::time(nullptr) + ::getpid());
-    std::array<char, 8> result;
-    for (auto& x : result) {
+    file_id result;
+    for (auto& x : result.raw) {
         x = ::rand();
     }
     return result;
@@ -97,14 +97,14 @@ packet_t prepare_packet(
         size_t filesize,
         std::uint32_t seq_number,
         std::uint32_t chunks_count,
-        const std::array<char, 8>& file_id,
+        file_id id,
         const std::vector<char>& data)
 {
     packet_t packet;
     packet.payload.seq_number = seq_number;
     packet.payload.seq_total = chunks_count;
     packet.payload.type = packet_type::PUT;
-    packet.payload.id = file_id;
+    packet.payload.id = id;
 
     const auto offset = seq_number * MAX_DATA_LEN;
     const auto data_len = std::min(filesize - offset, MAX_DATA_LEN);
@@ -134,8 +134,7 @@ void send_chunk(
     } else if (static_cast<size_t>(sent_bytes) != packet.length) { // safe to cast because -1 is handled above
         // TODO: re-send this packet, as we only sent a part of it
     } else {
-        const auto file_id = *reinterpret_cast<const std::uint64_t*>(packet.payload.id.data());
-        ERR("<-- (" << filename << ", " << file_id << ") Sent chunk #" << seq_number);
+        ERR("<-- (" << filename << ", " << packet.payload.id.as_number << ") Sent chunk #" << seq_number);
     }
 }
 
