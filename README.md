@@ -66,3 +66,7 @@ Received a file id = 2447301909556127264, 1 bytes, checksum 0x399f7b69
 
 Также я запускал сервер под Valgrind (`valgrind ./udpcpd localhost 8765`) и не
 получил никаких предупреждений об утечках.
+
+# Лицензия
+
+CC0 1.0 Universal (см. файл LICENSE).
