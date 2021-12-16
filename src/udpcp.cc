@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
     const auto checksum = crc32c(data);
     const auto filesize = data.size();
 
-    const auto chunks_count = (filesize + MAX_DATA_LEN - 1) / MAX_DATA_LEN;
+    const auto chunks_count = std::max(1lu, (filesize + MAX_DATA_LEN - 1) / MAX_DATA_LEN);
     ERR(filename << " is " << filesize << " bytes long, so " << chunks_count << " chunks, the last one is " << (filesize % MAX_DATA_LEN) << " bytes long");
 
     const auto file_id = random_file_id();
