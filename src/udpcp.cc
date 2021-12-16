@@ -1,8 +1,10 @@
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <netdb.h>
+#include <numeric>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -212,7 +214,13 @@ int main(int argc, char** argv) {
     const auto file_id = random_file_id();
 
     std::uint32_t server_checksum = 0;
-    for (std::uint32_t seq_number = 0; seq_number < chunks_count; ++seq_number) {
+
+    std::vector<std::uint32_t> seq_numbers;
+    seq_numbers.resize(chunks_count, 0);
+    std::iota(seq_numbers.begin(), seq_numbers.end(), 0);
+    std::random_shuffle(seq_numbers.begin(), seq_numbers.end());
+
+    for (const auto seq_number : seq_numbers) {
         const packet_t packet = prepare_packet(filesize, seq_number, chunks_count, file_id, data);
         do {
             send_chunk(server, server_address, filename, packet, seq_number);

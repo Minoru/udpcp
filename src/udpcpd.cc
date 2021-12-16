@@ -47,7 +47,8 @@ packet_t ServerState::handle_packet(const packet_t& packet) {
         << " out of " << filestate.chunks_expected << " chunks");
 
     const auto offset = packet.payload.seq_number * MAX_DATA_LEN;
-    filestate.data.resize(offset + data_length, 0);
+    const auto data_size = std::max(offset + data_length, filestate.data.size());
+    filestate.data.resize(data_size, 0);
     std::copy(
             packet.payload.data.cbegin(),
             packet.payload.data.cbegin() + data_length,
